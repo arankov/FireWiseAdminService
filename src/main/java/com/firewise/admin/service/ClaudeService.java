@@ -144,7 +144,7 @@ public class ClaudeService {
     private String callAnthropicApi(String apiKey, String prompt) {
         Map<String, Object> requestBody = Map.of(
                 "model", MODEL,
-                "max_tokens", 4096,
+                "max_tokens", 8192,
                 "messages", List.of(Map.of(
                         "role", "user",
                         "content", prompt
@@ -189,14 +189,52 @@ public class ClaudeService {
 
     private List<ClaudeSuggestionDto> parseSuggestions(String responseText) {
         try {
-            // Extract JSON array from response (Claude may include markdown fencing)
+            log.info("Claude response length: {} chars", responseText.length());
+
+            // Strip markdown code fencing if present
             String json = responseText.trim();
-            if (json.contains("[")) {
-                json = json.substring(json.indexOf('['), json.lastIndexOf(']') + 1);
+            if (json.startsWith("```")) {
+                // Remove opening fence (```json or ```)
+                int firstNewline = json.indexOf('\n');
+                if (firstNewline > 0) {
+                    json = json.substring(firstNewline + 1);
+                }
+                // Remove closing fence
+                int lastFence = json.lastIndexOf("```");
+                if (lastFence > 0) {
+                    json = json.substring(0, lastFence);
+                }
+                json = json.trim();
             }
-            return objectMapper.readValue(json, new TypeReference<List<ClaudeSuggestionDto>>() {});
+
+            // Find the outermost JSON array brackets
+            int start = json.indexOf('[');
+            int end = json.lastIndexOf(']');
+            if (start >= 0 && end > start) {
+                json = json.substring(start, end + 1);
+            } else if (start >= 0) {
+                // Truncated response — close any open objects and the array
+                log.warn("Claude response appears truncated (no closing ]). Attempting partial parse.");
+                json = json.substring(start);
+                // Find the last complete object (ends with })
+                int lastCloseBrace = json.lastIndexOf('}');
+                if (lastCloseBrace > 0) {
+                    json = json.substring(0, lastCloseBrace + 1) + "]";
+                } else {
+                    return new ArrayList<>();
+                }
+            } else {
+                log.error("No valid JSON array found in Claude response. First 500 chars: {}",
+                        responseText.substring(0, Math.min(500, responseText.length())));
+                return new ArrayList<>();
+            }
+
+            List<ClaudeSuggestionDto> results = objectMapper.readValue(json, new TypeReference<List<ClaudeSuggestionDto>>() {});
+            log.info("Parsed {} Claude suggestions", results.size());
+            return results;
         } catch (Exception e) {
-            log.error("Failed to parse Claude suggestions: {}", e.getMessage());
+            log.error("Failed to parse Claude suggestions: {}. First 500 chars of response: {}",
+                    e.getMessage(), responseText.substring(0, Math.min(500, responseText.length())));
             return new ArrayList<>();
         }
     }

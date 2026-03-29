@@ -17,6 +17,7 @@ export default function QueueEntryDetail() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [claudeLoading, setClaudeLoading] = useState(false);
   const [claudeSuggestions, setClaudeSuggestions] = useState(null);
+  const [claudeHadError, setClaudeHadError] = useState(false);
 
   useEffect(() => {
     api.getQueueEntry(id).then(setEntry).catch(e => setError(e.message));
@@ -47,6 +48,15 @@ export default function QueueEntryDetail() {
   };
 
   const handleAskClaude = async () => {
+    // Always show modal if the last Claude call failed (let user re-enter key)
+    if (claudeHadError) {
+      setError(null);
+      setClaudeHadError(false);
+      // Clear the old key from cache
+      try { await api.clearClaudeApiKey(getSessionId()); } catch {}
+      setShowApiKeyModal(true);
+      return;
+    }
     const sessionId = getSessionId();
     try {
       const status = await api.getClaudeKeyStatus(sessionId);
@@ -64,11 +74,13 @@ export default function QueueEntryDetail() {
     setClaudeLoading(true);
     setClaudeSuggestions(null);
     setError(null);
+    setClaudeHadError(false);
     try {
       const suggestions = await api.askClaude(id, sessionId);
       setClaudeSuggestions(suggestions);
     } catch (e) {
       setError('Claude AI error: ' + e.message);
+      setClaudeHadError(true);
     }
     setClaudeLoading(false);
   };

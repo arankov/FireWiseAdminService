@@ -39,6 +39,12 @@ public class ClaudeController {
         return ResponseEntity.ok(Map.of("status", "stored"));
     }
 
+    @DeleteMapping("/claude/api-key")
+    public ResponseEntity<Map<String, String>> clearApiKey(@RequestParam String sessionId) {
+        apiKeyCacheService.removeKey(sessionId);
+        return ResponseEntity.ok(Map.of("status", "cleared"));
+    }
+
     @GetMapping("/claude/api-key/status")
     public ResponseEntity<Map<String, Boolean>> getKeyStatus(@RequestParam String sessionId) {
         boolean valid = apiKeyCacheService.hasValidKey(sessionId);

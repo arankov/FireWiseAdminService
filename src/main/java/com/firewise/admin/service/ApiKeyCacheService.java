@@ -31,4 +31,8 @@ public class ApiKeyCacheService {
     public boolean hasValidKey(String sessionId) {
         return getKey(sessionId) != null;
     }
+
+    public void removeKey(String sessionId) {
+        cache.remove(sessionId);
+    }
 }

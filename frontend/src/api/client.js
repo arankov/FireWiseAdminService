@@ -52,6 +52,7 @@ export const api = {
 
   // Claude AI
   setClaudeApiKey: (sessionId, apiKey) => request('/claude/api-key', { method: 'POST', body: JSON.stringify({ sessionId, apiKey }) }),
+  clearClaudeApiKey: (sessionId) => request(`/claude/api-key?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' }),
   getClaudeKeyStatus: (sessionId) => request(`/claude/api-key/status?sessionId=${encodeURIComponent(sessionId)}`),
   askClaude: (queueEntryId, sessionId) => request(`/queue/${queueEntryId}/ask-claude`, { method: 'POST', body: JSON.stringify({ sessionId }) }),
 };
