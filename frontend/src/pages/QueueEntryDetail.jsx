@@ -101,7 +101,7 @@ export default function QueueEntryDetail() {
     setEntry(updated);
   };
 
-  if (error) return <div className="error">{error}</div>;
+  if (!entry && error) return <div className="error">{error}</div>;
   if (!entry) return <div className="loading">Loading entry...</div>;
 
   let proposedData = {};
@@ -183,6 +183,8 @@ export default function QueueEntryDetail() {
           </Link>
         )}
       </div>
+
+      {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
 
       {/* Claude API Key Modal */}
       {showApiKeyModal && (

@@ -151,23 +151,37 @@ public class ClaudeService {
                 ))
         );
 
-        String responseJson = restClient.post()
-                .uri(ANTHROPIC_API_URL)
-                .header("x-api-key", apiKey)
-                .header("anthropic-version", "2023-06-01")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(requestBody)
-                .retrieve()
-                .body(String.class);
-
         try {
+            String responseJson = restClient.post()
+                    .uri(ANTHROPIC_API_URL)
+                    .header("x-api-key", apiKey)
+                    .header("anthropic-version", "2023-06-01")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(String.class);
+
             JsonNode root = objectMapper.readTree(responseJson);
             JsonNode content = root.path("content");
             if (content.isArray() && !content.isEmpty()) {
                 return content.get(0).path("text").asText();
             }
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            // Extract Anthropic error message from response body
+            try {
+                JsonNode errorBody = objectMapper.readTree(e.getResponseBodyAsString());
+                String message = errorBody.path("error").path("message").asText();
+                throw new RuntimeException("Anthropic API error: " + message);
+            } catch (RuntimeException re) {
+                throw re;
+            } catch (Exception parseEx) {
+                throw new RuntimeException("Anthropic API error: " + e.getStatusCode());
+            }
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Failed to parse Anthropic API response: {}", e.getMessage());
+            log.error("Failed to call Anthropic API: {}", e.getMessage());
+            throw new RuntimeException("Failed to call Claude API: " + e.getMessage());
         }
 
         return "[]";

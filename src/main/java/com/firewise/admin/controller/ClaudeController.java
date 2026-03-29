@@ -60,7 +60,11 @@ public class ClaudeController {
         QueueEntry entry = queueEntryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Queue entry not found: " + id));
 
-        List<ClaudeSuggestionDto> suggestions = claudeService.askClaude(apiKey, entry);
-        return ResponseEntity.ok(suggestions);
+        try {
+            List<ClaudeSuggestionDto> suggestions = claudeService.askClaude(apiKey, entry);
+            return ResponseEntity.ok(suggestions);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }
