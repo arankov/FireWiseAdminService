@@ -49,4 +49,9 @@ export const api = {
 
   // Import
   simulateImport: (sourceId, count) => request('/import/simulate', { method: 'POST', body: JSON.stringify({ sourceId, count }) }),
+
+  // Claude AI
+  setClaudeApiKey: (sessionId, apiKey) => request('/claude/api-key', { method: 'POST', body: JSON.stringify({ sessionId, apiKey }) }),
+  getClaudeKeyStatus: (sessionId) => request(`/claude/api-key/status?sessionId=${encodeURIComponent(sessionId)}`),
+  askClaude: (queueEntryId, sessionId) => request(`/queue/${queueEntryId}/ask-claude`, { method: 'POST', body: JSON.stringify({ sessionId }) }),
 };

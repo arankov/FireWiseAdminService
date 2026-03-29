@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import StatusBadge from '../components/common/StatusBadge';
 import CompletenessBar from '../components/common/CompletenessBar';
+import ApiKeyModal, { getSessionId } from '../components/claude/ApiKeyModal';
+import ClaudeSuggestionsPanel from '../components/claude/ClaudeSuggestionsPanel';
 
 export default function QueueEntryDetail() {
   const { id } = useParams();
@@ -12,6 +14,9 @@ export default function QueueEntryDetail() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [rejectNotes, setRejectNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [claudeLoading, setClaudeLoading] = useState(false);
+  const [claudeSuggestions, setClaudeSuggestions] = useState(null);
 
   useEffect(() => {
     api.getQueueEntry(id).then(setEntry).catch(e => setError(e.message));
@@ -39,6 +44,61 @@ export default function QueueEntryDetail() {
       setError(e.message);
     }
     setSaving(false);
+  };
+
+  const handleAskClaude = async () => {
+    const sessionId = getSessionId();
+    try {
+      const status = await api.getClaudeKeyStatus(sessionId);
+      if (!status.valid) {
+        setShowApiKeyModal(true);
+        return;
+      }
+      callClaude(sessionId);
+    } catch {
+      setShowApiKeyModal(true);
+    }
+  };
+
+  const callClaude = async (sessionId) => {
+    setClaudeLoading(true);
+    setClaudeSuggestions(null);
+    setError(null);
+    try {
+      const suggestions = await api.askClaude(id, sessionId);
+      setClaudeSuggestions(suggestions);
+    } catch (e) {
+      setError('Claude AI error: ' + e.message);
+    }
+    setClaudeLoading(false);
+  };
+
+  const handleKeyStored = () => {
+    setShowApiKeyModal(false);
+    callClaude(getSessionId());
+  };
+
+  const handleAcceptSuggestion = (attrId, attrName, value) => {
+    // Merge into entry's proposedData
+    const updated = { ...entry };
+    const proposed = JSON.parse(updated.proposedData || '{}');
+    if (!proposed.attributes) proposed.attributes = {};
+    proposed.attributes[attrId] = { value, suggestedByAI: true };
+    updated.proposedData = JSON.stringify(proposed);
+    updated.populatedAttributes = Object.keys(proposed.attributes).length;
+    setEntry(updated);
+  };
+
+  const handleAcceptAll = (values) => {
+    const updated = { ...entry };
+    const proposed = JSON.parse(updated.proposedData || '{}');
+    if (!proposed.attributes) proposed.attributes = {};
+    values.forEach(v => {
+      proposed.attributes[v.attributeId] = { value: v.value, suggestedByAI: true };
+    });
+    updated.proposedData = JSON.stringify(proposed);
+    updated.populatedAttributes = Object.keys(proposed.attributes).length;
+    setEntry(updated);
   };
 
   if (error) return <div className="error">{error}</div>;
@@ -108,12 +168,42 @@ export default function QueueEntryDetail() {
             Reopen for Review
           </button>
         )}
+        {(entry.status === 'NEW' || entry.status === 'WIP') && (
+          <button
+            onClick={handleAskClaude}
+            disabled={claudeLoading}
+            style={{ background: '#7c5cbf', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+          >
+            {claudeLoading ? 'Asking Claude...' : 'Ask Claude'}
+          </button>
+        )}
         {entry.plantId && (
           <Link to={`/plants/${entry.plantId}`}>
             <button>View Plant in Database</button>
           </Link>
         )}
       </div>
+
+      {/* Claude API Key Modal */}
+      {showApiKeyModal && (
+        <ApiKeyModal onKeyStored={handleKeyStored} onCancel={() => setShowApiKeyModal(false)} />
+      )}
+
+      {/* Claude Loading Indicator */}
+      {claudeLoading && (
+        <div className="card" style={{ marginBottom: 16, textAlign: 'center', padding: 24, color: '#7c5cbf' }}>
+          Analyzing plant data with Claude AI... This may take 15-30 seconds.
+        </div>
+      )}
+
+      {/* Claude Suggestions */}
+      {claudeSuggestions && !claudeLoading && (
+        <ClaudeSuggestionsPanel
+          suggestions={claudeSuggestions}
+          onAccept={handleAcceptSuggestion}
+          onAcceptAll={handleAcceptAll}
+        />
+      )}
 
       {/* Confirm Dialog */}
       {confirmAction && (
