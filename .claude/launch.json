@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "FireWise Backend (Spring Boot + H2)",
+      "runtimeExecutable": "./mvnw",
+      "runtimeArgs": ["spring-boot:run", "-Dspring-boot.run.profiles=h2"],
+      "port": 8080
+    },
+    {
+      "name": "FireWise Frontend (Vite + React)",
+      "runtimeExecutable": "/Users/alexrankov/.nvm/versions/node/v24.14.1/bin/npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
+      "port": 5173
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+target/
+data/
+*.class
+*.jar
+*.war
+*.log
+.idea/
+*.iml
+*.ipr
+*.iws
+node_modules/
+frontend/dist/
+frontend/node_modules/
+.DS_Store
